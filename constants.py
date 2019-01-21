@@ -2,6 +2,9 @@
 config_name = 'config.ini'
 db_name = 'redshift'
 
+# s3 arguments
+s3_name = 's3_bucket'
+
 # schemas
 public_schema = 'public'
 analytcs_schema = 'perpay_analytics'
