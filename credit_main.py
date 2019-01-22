@@ -99,10 +99,8 @@ class Builder:
         conn.close()
         print("db connection is closed")
 
-    def ping_db(self, conn):
-        temp = pd.read_sql("""select * from public.user limit 1""", db_handler.db_conn)
-        print("First row of of public.user table as dataframe...")
-        print(temp)
+    def reset_connection(self, conn):
+        conn.reset()
 
 if __name__ == "__main__":
     # Add arrgs
@@ -154,10 +152,10 @@ if __name__ == "__main__":
 
     # TEMP - Save to db for faster testing...
     db_handler.write_df_to_db(z_brwr1, constants.dev_schema, constants.name_z_brwr1)
-    """
     # TEMP - Read from db for faster testing...
-    z_brwr1 = pd.read_sql("""select * from test_perpay_analytics.dev_z_brwr1""", db_handler.db_conn)
-    #z_brwr1 = db_handler.read_table_to_df(db_handler.db_conn, constants.dev_schema, constants.name_z_brwr1)
+    db_handler.reset_connection(db_handler.db_conn) # b/c just created the table
+    """
+    z_brwr1 = db_handler.read_table_to_df(db_handler.db_conn, constants.dev_schema, constants.name_z_brwr1)
 
     # *** Second Function Set ***
     # Function 6 working
@@ -176,8 +174,7 @@ if __name__ == "__main__":
     # Last fcn working
     z_brwr1 = z_brwr1.merge(z_brwr, on='user_id', how='left').reset_index(drop=True)
 
-
-
+    # Close everything out
     db_handler.close_connection(db_handler.db_conn)
 
 
