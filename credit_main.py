@@ -8,6 +8,17 @@ from io import StringIO
 from configparser import ConfigParser
 import constants
 
+"""
+OVERVIEW: A pandas version of what Zach has put together for credit recog.,
+            torwards a scalable, deployable code base
+
+STATUS: WIP
+    - Infastructure is good to go
+
+NOTE: Read_sql does not refresh the db so the call will not recognize any
+        table that has been written to db in script withing a read call
+"""
+
 class ParamParser:
     def __init__(self, config_name, section):
         self.config_name = config_name
@@ -49,18 +60,18 @@ class Builder:
 
     def read_table_to_df(self, db_conn, schema, filename):
         sql = """select * from {schema}.{filename}""".format(schema=schema, filename=filename)
-        #sql = """select first_name, email, password, version from {schema}.{filename} limit 10""".format(schema=schema, filename=filename)
+        #sql = """select * from {schema}.{filename} limit 100""".format(schema=schema, filename=filename)
         print('Reading in {schema}.{filename}...'.format(schema=schema, filename=filename))
         df = pd.read_sql(sql, db_conn)
         print('{schema}.{filename} read in to dataframe.\n'.format(schema=schema, filename=filename))
         return df
 
-    def write_df_to_table(self, data_frame, schema, table_name):
+    def write_df_to_db(self, data_frame, schema, table_name):
 
-        s3_params = ParamParser(filename, section)
+        s3_params = ParamParser(self.config_name, constants.bucket_name)
         pr.connect_to_s3(**s3_params.parameters)
 
-        redshift_params = ParamParser(filename, section)
+        redshift_params = ParamParser(self.config_name, constants.db_name)
         pr.connect_to_redshift(**redshift_params.parameters)
 
         col_types = []
@@ -75,15 +86,14 @@ class Builder:
             elif "float" in str(j):
                 col_types.append('FLOAT')
             elif "int64" in str(j):
-                col_types.append('TEXT')
+                col_types.append('INT8')
             elif "int" in str(j):
                 col_types.append('INT')
             else:
                 col_types.append('TEXT')
-
         print("Begin writing {schema}.{table_name} to db...".format(schema=schema, table_name=table_name))
-        pr.pandas_to_redshift(data_frame=data_frame, redshift_table_name=schema + table_name, column_data_types=col_types)
-        print("Writing complete.")
+        pr.pandas_to_redshift(data_frame=data_frame, redshift_table_name=schema + '.' + table_name, column_data_types=col_types)
+        print("Writing complete.\n")
 
     def close_connection(self, conn):
         conn.close()
@@ -112,6 +122,7 @@ if __name__ == "__main__":
     #  so that less memory is used....
     # More of an exercise in learning the data right now
 
+    """
     # *** First Function Set -> z_brwr1 ***
     # Function 1 working
     user_df = db_handler.read_table_to_df(db_handler.db_conn, constants.public_schema, constants.user_table)
@@ -141,16 +152,19 @@ if __name__ == "__main__":
     z_brwr1 = z_brwr1.merge(z_credits, on='borrower_id', how='left').reset_index(drop=True).rename(columns={'bal_s':'balances_credit_s', 'bal_e':'balances_credit_e'})
     z_brwr1['curr_date'] = datetime.date(year2, month2, day2)
 
-    # TEMP - Save to db so can start here
-    write_table_db(zbrwr1, constants.dev_schema, constants.name_z_brwr1)
-    z_brwr1 = read_table_to_df(db_handler.db_conn, constants.dev_schema, constants.name_z_brwr1)
-    #z_brwr1 = pd.read_csv("test_z_brwr1.csv", low_memory=False)
+    # TEMP - Save to db for faster testing...
+    db_handler.write_df_to_db(z_brwr1, constants.dev_schema, constants.name_z_brwr1)
+    """
+    # TEMP - Read from db for faster testing...
+    z_brwr1 = pd.read_sql("""select * from test_perpay_analytics.dev_z_brwr1""", db_handler.db_conn)
+    #z_brwr1 = db_handler.read_table_to_df(db_handler.db_conn, constants.dev_schema, constants.name_z_brwr1)
 
     # *** Second Function Set ***
     # Function 6 working
     z_brwr = db_handler.read_table_to_df(db_handler.db_conn, constants.public_schema, constants.core_acct_bal_table)
     z_brwr = z_brwr[['user_id', 'created', 'starting_balance', 'ending_balance', 'id']]
-    z_brwr = z_brwr[(z_brwr['created'] >= datetime.date(year2, month2, day2)) & (z_brwr['created'] < datetime.date(year2, month2, day2+1))]
+    z_brwr = z_brwr[(z_brwr['created'] >= pd.Timestamp(datetime.date(year2, month2, day2))) &
+                    (z_brwr['created'] < pd.Timestamp(datetime.date(year2, month2, day2+1)))]
 
     # Function 7, 8, 9 working
     z_brwr['rank_start'] = z_brwr.sort_values(['id'], ascending=[True]).groupby('user_id').cumcount()
