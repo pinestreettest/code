@@ -1,14 +1,16 @@
-# db arguments - redshift
+# config arguments (only local)
 config_name = 'config.ini'
+
+# redshift arguments
 db_name = 'redshift'
 
 # s3 arguments
-s3_name = 's3_bucket'
+bucket_name = 's3_bucket'
 
-# schemas
+# db schemas
 public_schema = 'public'
 analytcs_schema = 'perpay_analytics'
-dev_schema = 'users_herr'
+dev_schema = 'test_perpay_analytics'
 
 # working tables
 user_table = 'user'
