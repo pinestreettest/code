@@ -14,9 +14,11 @@ OVERVIEW: A pandas version of what Zach has put together for credit recog.,
 
 STATUS: WIP
     - Infastructure is good to go
+    - Need to add inputting of user arguments for the date...
 
 NOTE: Read_sql does not refresh the db so the call will not recognize any
         table that has been written to db in script withing a read call
+    - Therefore class function reset_connection() was added
 """
 
 class ParamParser:
@@ -120,9 +122,10 @@ if __name__ == "__main__":
     #  so that less memory is used....
     # More of an exercise in learning the data right now
 
-    """
+
     # *** First Function Set -> z_brwr1 ***
     # Function 1 working
+    """
     user_df = db_handler.read_table_to_df(db_handler.db_conn, constants.public_schema, constants.user_table)
     brwr_df = db_handler.read_table_to_df(db_handler.db_conn, constants.public_schema, constants.brwr_table)
     user_df.rename(columns={'id':'user_id'}, inplace=True)
@@ -150,13 +153,6 @@ if __name__ == "__main__":
     z_brwr1 = z_brwr1.merge(z_credits, on='borrower_id', how='left').reset_index(drop=True).rename(columns={'bal_s':'balances_credit_s', 'bal_e':'balances_credit_e'})
     z_brwr1['curr_date'] = datetime.date(year2, month2, day2)
 
-    # TEMP - Save to db for faster testing...
-    db_handler.write_df_to_db(z_brwr1, constants.dev_schema, constants.name_z_brwr1)
-    # TEMP - Read from db for faster testing...
-    db_handler.reset_connection(db_handler.db_conn) # b/c just created the table
-    """
-    z_brwr1 = db_handler.read_table_to_df(db_handler.db_conn, constants.dev_schema, constants.name_z_brwr1)
-
     # *** Second Function Set ***
     # Function 6 working
     z_brwr = db_handler.read_table_to_df(db_handler.db_conn, constants.public_schema, constants.core_acct_bal_table)
@@ -171,8 +167,16 @@ if __name__ == "__main__":
     z_brwr['bal_e'] = z_brwr.loc[z_brwr.groupby('user_id')['rank_end'].idxmin(), 'ending_balance']
     z_brwr = z_brwr.groupby('user_id')[['bal_s', 'bal_e']].first().reset_index()
 
-    # Last fcn working
+    # Last fcn working!
     z_brwr1 = z_brwr1.merge(z_brwr, on='user_id', how='left').reset_index(drop=True)
+
+    db_handler.write_df_to_db(z_brwr1, constants.dev_schema, constants.name_z_brwr1)
+    # TEMP - Read from db for faster testing...
+    # db_handler.reset_connection(db_handler.db_conn) # b/c just created the table
+    """
+    z_brwr1 = db_handler.read_table_to_df(db_handler.db_conn, constants.dev_schema, constants.name_z_brwr1)
+
+
 
     # Close everything out
     db_handler.close_connection(db_handler.db_conn)
